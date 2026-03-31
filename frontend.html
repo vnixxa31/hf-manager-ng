@@ -1,0 +1,1076 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HF Model Downloader</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+        /* ── Color tokens ── */
+        :root {
+            --bg-primary: #F5F3EE;
+            --bg-surface: #FFFFFF;
+            --bg-inset: #EDEAE4;
+            --border: #D4D0C8;
+            --border-strong: #B8B3AA;
+            --text-primary: #1A1A1A;
+            --text-secondary: #6B6560;
+            --text-tertiary: #9C9690;
+            --accent: #C2552A;
+            --accent-hover: #A8461F;
+            --accent-text: #FFFFFF;
+            --status-queued: #B8860B;
+            --status-active: #2563EB;
+            --status-done: #16783A;
+            --status-error: #C22D2D;
+            --focus-ring: rgba(194, 85, 42, 0.35);
+            --scrollbar-thumb: #C8C3BB;
+            --scrollbar-hover: #A8A39B;
+            --checkbox-accent: #C2552A;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #161514;
+            --bg-surface: #1E1D1B;
+            --bg-inset: #2A2826;
+            --border: #3A3734;
+            --border-strong: #4A4744;
+            --text-primary: #E8E4DE;
+            --text-secondary: #9C9690;
+            --text-tertiary: #6B6560;
+            --accent: #E07A50;
+            --accent-hover: #C2552A;
+            --accent-text: #FFFFFF;
+            --focus-ring: rgba(224, 122, 80, 0.3);
+            --scrollbar-thumb: #4A4744;
+            --scrollbar-hover: #5A5754;
+            --checkbox-accent: #E07A50;
+        }
+
+        /* ── Reset & base ── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        [x-cloak] { display: none !important; }
+
+        /* ── Scrollbar ── */
+        .scroll-area::-webkit-scrollbar { width: 6px; height: 6px; }
+        .scroll-area::-webkit-scrollbar-track { background: transparent; }
+        .scroll-area::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); }
+        .scroll-area::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+        /* ── Layout ── */
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 48px 24px 64px;
+        }
+
+        .section + .section { margin-top: 32px; }
+
+        /* ── Typography ── */
+        .heading {
+            font-family: 'Instrument Serif', serif;
+            font-weight: 400;
+            font-style: normal;
+            letter-spacing: -0.01em;
+        }
+
+        .heading-lg { font-size: 32px; line-height: 1.15; }
+        .heading-md { font-size: 20px; line-height: 1.3; }
+
+        .text-secondary { color: var(--text-secondary); }
+        .text-tertiary { color: var(--text-tertiary); }
+        .text-xs { font-size: 11px; }
+        .text-sm { font-size: 12px; }
+
+        .mono { font-family: 'IBM Plex Mono', monospace; }
+
+        /* ── Header ── */
+        .header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-subtitle {
+            margin-top: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-tertiary);
+        }
+
+        .status-dot.active {
+            background: var(--status-done);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ── Theme toggle ── */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border);
+            background: var(--bg-surface);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: border-color 0.15s ease, color 0.15s ease;
+        }
+
+        .theme-toggle:hover {
+            border-color: var(--border-strong);
+            color: var(--text-primary);
+        }
+
+        .theme-toggle svg { width: 16px; height: 16px; }
+
+        /* ── Card / Section ── */
+        .card {
+            border: 1px solid var(--border);
+            background: var(--bg-surface);
+            padding: 20px;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .card-header-meta {
+            font-size: 11px;
+            color: var(--text-tertiary);
+        }
+
+        /* ── Inputs ── */
+        .input-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .input {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 13px;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            background: var(--bg-inset);
+            color: var(--text-primary);
+            outline: none;
+            transition: border-color 0.15s ease;
+        }
+
+        .input::placeholder { color: var(--text-tertiary); }
+        .input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--focus-ring); }
+
+        .input-grow { flex: 1; min-width: 200px; }
+        .input-fixed { width: 200px; }
+
+        /* ── Buttons ── */
+        .btn {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 8px 16px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--accent-text);
+            border-color: var(--accent);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+        }
+
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+            border-color: var(--border);
+        }
+
+        .btn-ghost:hover:not(:disabled) {
+            border-color: var(--border-strong);
+            color: var(--text-primary);
+        }
+
+        .btn-ghost.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: color-mix(in srgb, var(--accent) 12%, transparent);
+        }
+
+        .btn-amber {
+            background: transparent;
+            color: var(--status-queued);
+            border-color: var(--status-queued);
+        }
+
+        .btn-amber:hover:not(:disabled) {
+            background: var(--status-queued);
+            color: var(--accent-text);
+        }
+
+        /* ── Spinner ── */
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-right-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Status message ── */
+        .status-msg {
+            margin-top: 12px;
+            font-size: 11px;
+            color: var(--text-tertiary);
+        }
+
+        .status-msg.error { color: var(--status-error); }
+
+        /* ── Toolbar ── */
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .toolbar .search-wrap {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+
+        .toolbar .search-wrap .search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 14px;
+            height: 14px;
+            color: var(--text-tertiary);
+            pointer-events: none;
+        }
+
+        .toolbar .search-wrap .input { width: 100%; padding-left: 32px; }
+
+        .toolbar-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        /* ── Quant chips ── */
+        .chip-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .chip {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            font-weight: 500;
+            padding: 4px 10px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .chip:hover {
+            border-color: var(--border-strong);
+            color: var(--text-primary);
+        }
+
+        .chip.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: var(--accent-text);
+        }
+
+        /* ── Tables ── */
+        .table-wrap {
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .table-scroll {
+            max-height: 420px;
+            overflow: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+
+        thead th {
+            background: var(--bg-inset);
+            padding: 8px 12px;
+            text-align: left;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-tertiary);
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        thead th.text-right { text-align: right; }
+        thead th.text-center { text-align: center; }
+        thead th.w-check { width: 36px; }
+        thead th.w-size { width: 100px; }
+        thead th.w-quant { width: 140px; }
+        thead th.w-task { width: 80px; }
+        thead th.w-status { width: 120px; }
+
+        tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.1s ease;
+        }
+
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: var(--bg-inset); }
+        tbody tr.clickable { cursor: pointer; }
+        tbody tr.row-focus {
+            background: color-mix(in srgb, var(--accent) 14%, var(--bg-surface));
+        }
+
+        td {
+            padding: 6px 12px;
+            vertical-align: middle;
+        }
+
+        td.text-right { text-align: right; }
+        td.text-center { text-align: center; }
+
+        td code {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            color: var(--text-primary);
+        }
+
+        td .file-path { color: var(--text-primary); }
+        td .file-meta { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+
+        .file-line {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .download-chip {
+            font-size: 10px;
+            line-height: 1;
+            padding: 3px 6px;
+            border: 1px solid color-mix(in srgb, var(--status-done) 60%, var(--border));
+            color: var(--status-done);
+            background: color-mix(in srgb, var(--status-done) 12%, var(--bg-surface));
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+        }
+
+        .download-note {
+            margin-top: 2px;
+        }
+
+        /* ── Quant tag (inline) ── */
+        .quant-tag {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 500;
+            padding: 1px 6px;
+            border-left: 2px solid var(--accent);
+            background: var(--bg-inset);
+            color: var(--text-secondary);
+            margin: 1px 4px 1px 0;
+        }
+
+        /* ── Status indicator ── */
+        .task-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+        }
+
+        .task-status .dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .task-status.queued .dot { background: var(--status-queued); }
+        .task-status.queued { color: var(--status-queued); }
+
+        .task-status.downloading .dot { background: var(--status-active); animation: pulse 1.5s ease-in-out infinite; }
+        .task-status.downloading { color: var(--status-active); }
+
+        .task-status.completed .dot { background: var(--status-done); }
+        .task-status.completed { color: var(--status-done); }
+
+        .task-status.failed .dot { background: var(--status-error); }
+        .task-status.failed { color: var(--status-error); }
+
+        /* ── Queue footer ── */
+        .queue-action {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .table-note {
+            display: block;
+            margin-top: 4px;
+            color: var(--text-tertiary);
+            font-size: 11px;
+        }
+
+        /* ── Checkbox ── */
+        input[type="checkbox"] {
+            accent-color: var(--checkbox-accent);
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+        }
+
+        /* ── Truncate ── */
+        .truncate {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 280px;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            .container { padding: 24px 16px 48px; }
+            .header { margin-bottom: 24px; }
+            .input-fixed { width: 100%; }
+            .input-row { flex-direction: column; }
+            .heading-lg { font-size: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+<div x-data="app()" x-init="init()" class="container"
+     :data-theme="darkMode ? 'dark' : null"
+     x-effect="document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')">
+
+    <!-- Header -->
+    <header class="header">
+        <div>
+            <h1 class="heading heading-lg">HF Model Downloader</h1>
+            <p class="header-subtitle">Browse repos. Select quantizations. Queue downloads.</p>
+        </div>
+        <div class="header-right">
+            <span class="text-xs text-tertiary" style="display:inline-flex;align-items:center;gap:6px;">
+                <span class="status-dot" :class="polling && 'active'"></span>
+                <span x-text="polling ? 'polling' : 'idle'"></span>
+            </span>
+            <button class="theme-toggle" @click="toggleTheme()" :title="darkMode ? 'Switch to light mode' : 'Switch to dark mode'">
+                <template x-if="darkMode">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                </template>
+                <template x-if="!darkMode">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </template>
+            </button>
+        </div>
+    </header>
+
+    <!-- Repo input -->
+    <section class="section card">
+        <div class="input-row">
+            <input
+                x-model="repoInput"
+                @keydown.enter="loadFiles()"
+                type="text"
+                placeholder="owner/model or full HF URL"
+                class="input input-grow"
+            />
+            <input
+                x-model="tokenInput"
+                type="password"
+                placeholder="HF token (optional)"
+                class="input input-fixed"
+            />
+            <button @click="loadFiles()" :disabled="loading" class="btn btn-primary">
+                <template x-if="!loading">
+                    <span>Load Files</span>
+                </template>
+                <template x-if="loading">
+                    <span style="display:inline-flex;align-items:center;gap:6px;">
+                        <span class="spinner"></span>
+                        Loading
+                    </span>
+                </template>
+            </button>
+        </div>
+        <p class="status-msg" :class="error && 'error'" x-text="statusMsg"></p>
+    </section>
+
+    <!-- Files -->
+    <section x-show="files.length > 0" x-cloak x-transition.opacity class="section card">
+        <div class="card-header">
+            <h2 class="heading heading-md">
+                Files
+                <span class="text-sm text-tertiary mono" x-text="'(' + filteredFiles().length + '/' + files.length + ')'"></span>
+            </h2>
+            <span class="card-header-meta" x-text="selectedCount() + ' selected - ' + formatSize(selectedSize())"></span>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="search-wrap">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input x-model="searchQuery" type="text" placeholder="Filter filenames..." class="input" />
+            </div>
+            <div class="toolbar-actions">
+                <button
+                    @click="toggleDownloadFilter('downloaded')"
+                    class="btn btn-ghost"
+                    :class="downloadFilter === 'downloaded' && 'active'"
+                >
+                    Downloaded
+                </button>
+                <button
+                    @click="toggleDownloadFilter('not_downloaded')"
+                    class="btn btn-ghost"
+                    :class="downloadFilter === 'not_downloaded' && 'active'"
+                >
+                    Not Downloaded
+                </button>
+                <button @click="selectVisible()" class="btn btn-ghost">Select Visible</button>
+                <button @click="clearSelection()" class="btn btn-ghost">Clear</button>
+            </div>
+        </div>
+
+        <!-- Quant chips -->
+        <div x-show="quantTags.length > 0" class="chip-row">
+            <template x-for="q in quantTags" :key="q">
+                <button
+                    @click="toggleQuant(q)"
+                    class="chip"
+                    :class="activeQuant === q && 'active'"
+                    x-text="q"
+                ></button>
+            </template>
+        </div>
+
+        <!-- File table -->
+        <div class="table-wrap">
+            <div x-ref="filesTableScroll" class="table-scroll scroll-area">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="w-check">
+                                <input type="checkbox" @change="toggleAll($event)" :checked="allVisibleSelected()" />
+                            </th>
+                            <th>File</th>
+                            <th class="text-right w-size">Size</th>
+                            <th class="w-quant">Quant</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="file in filteredFiles()" :key="file.path">
+                            <tr
+                                class="clickable"
+                                :class="lastScrolledFilePath === file.path && 'row-focus'"
+                                :data-file-path="file.path"
+                                @click="file.selected = !file.selected"
+                            >
+                                <td @click.stop>
+                                    <input type="checkbox" x-model="file.selected" />
+                                </td>
+                                <td>
+                                    <div class="file-line">
+                                        <code class="file-path" x-text="file.path"></code>
+                                        <span
+                                            x-show="currentRepoDownloadsByPath[file.path]"
+                                            class="download-chip"
+                                            :title="downloadStatusText(currentRepoDownloadsByPath[file.path])"
+                                        >
+                                            downloaded
+                                        </span>
+                                    </div>
+                                    <div
+                                        x-show="currentRepoDownloadsByPath[file.path]"
+                                        class="file-meta download-note"
+                                        x-text="downloadStatusText(currentRepoDownloadsByPath[file.path])"
+                                    ></div>
+                                </td>
+                                <td class="text-right">
+                                    <span class="file-meta" x-text="formatSize(file.size)"></span>
+                                </td>
+                                <td>
+                                    <template x-for="q in file.quantizations" :key="q">
+                                        <span class="quant-tag" x-text="q"></span>
+                                    </template>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Queue button -->
+        <div class="queue-action">
+            <button @click="addToQueue()" :disabled="selectedCount() === 0" class="btn btn-primary">
+                Add <span x-text="selectedCount()"></span> file(s) to queue
+            </button>
+        </div>
+    </section>
+
+    <!-- Download Queue -->
+    <section x-show="tasks.length > 0" x-cloak x-transition.opacity class="section card">
+        <div class="card-header">
+            <h2 class="heading heading-md">Download Queue</h2>
+            <span class="card-header-meta" x-text="tasks.length + ' task(s)'"></span>
+        </div>
+        <div class="table-wrap">
+            <div class="table-scroll scroll-area" style="max-height:320px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="w-task">Task</th>
+                            <th>Repo</th>
+                            <th>File</th>
+                            <th class="w-status">Status</th>
+                            <th>Message</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="task in tasks" :key="task.task_id">
+                            <tr>
+                                <td>
+                                    <code class="file-meta" x-text="task.task_id.slice(0, 8)"></code>
+                                </td>
+                                <td>
+                                    <code class="file-path" x-text="task.repo_id"></code>
+                                </td>
+                                <td>
+                                    <code class="file-path" x-text="task.file_path"></code>
+                                </td>
+                                <td>
+                                    <span class="task-status" :class="task.status">
+                                        <span class="dot"></span>
+                                        <span x-text="task.status"></span>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="truncate file-meta" x-text="task.message || ''"></span>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Downloaded Files -->
+    <section x-show="downloads.length > 0" x-cloak x-transition.opacity class="section card">
+        <div class="card-header">
+            <div>
+                <h2 class="heading heading-md">Tracked Downloads</h2>
+                <span class="table-note">Durable inventory from SQLite, ordered by last successful download.</span>
+            </div>
+            <span class="card-header-meta" x-text="downloads.length + ' file(s)'"></span>
+        </div>
+        <div class="table-wrap">
+            <div class="table-scroll scroll-area" style="max-height:360px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Repo</th>
+                            <th>File</th>
+                            <th class="text-right w-size">Size</th>
+                            <th>Fingerprint</th>
+                            <th>Last Download</th>
+                            <th class="text-right">Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="download in downloads" :key="download.repo_id + '::' + download.file_path">
+                            <tr>
+                                <td>
+                                    <code class="file-path" x-text="download.repo_id"></code>
+                                </td>
+                                <td>
+                                    <div>
+                                        <code class="file-path" x-text="download.file_path"></code>
+                                    </div>
+                                    <div class="file-meta truncate" :title="download.local_path" x-text="download.local_path"></div>
+                                    <div>
+                                        <template x-for="q in download.quantizations" :key="q">
+                                            <span class="quant-tag" x-text="q"></span>
+                                        </template>
+                                    </div>
+                                </td>
+                                <td class="text-right">
+                                    <span class="file-meta" x-text="formatSize(download.size_bytes)"></span>
+                                </td>
+                                <td>
+                                    <div class="file-meta" x-text="formatFingerprint(download)"></div>
+                                    <div class="file-meta" x-show="download.commit_hash" x-text="'commit ' + shortHash(download.commit_hash)"></div>
+                                </td>
+                                <td>
+                                    <span class="file-meta" x-text="formatTimestamp(download.last_downloaded_at)"></span>
+                                </td>
+                                <td class="text-right">
+                                    <span class="file-meta" x-text="download.download_count"></span>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+<script>
+function app() {
+    return {
+        repoInput: '',
+        tokenInput: '',
+        searchQuery: '',
+        downloadFilter: 'all',
+        activeQuant: null,
+        lastScrolledFilePath: null,
+        loading: false,
+        error: false,
+        polling: false,
+        statusMsg: 'No repo loaded.',
+        repoId: '',
+        files: [],
+        tasks: [],
+        downloads: [],
+        darkMode: false,
+
+        get quantTags() {
+            const s = new Set();
+            for (const f of this.files) {
+                for (const q of f.quantizations) s.add(q);
+            }
+            return Array.from(s).sort();
+        },
+
+        get currentRepoDownloadsByPath() {
+            const map = {};
+            if (!this.repoId) return map;
+            for (const download of this.downloads) {
+                if (download.repo_id !== this.repoId) continue;
+                map[download.file_path] = download;
+            }
+            return map;
+        },
+
+        init() {
+            const saved = localStorage.getItem('theme');
+            if (saved === 'dark') {
+                this.darkMode = true;
+            } else if (saved === 'light') {
+                this.darkMode = false;
+            } else {
+                this.darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            }
+            this.refreshQueue();
+            this.refreshDownloads();
+            setInterval(() => {
+                this.refreshQueue();
+                this.refreshDownloads();
+            }, 2000);
+        },
+
+        toggleTheme() {
+            this.darkMode = !this.darkMode;
+            localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
+        },
+
+        formatSize(bytes) {
+            if (bytes == null || bytes === 0) return '-';
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            let val = bytes;
+            let idx = 0;
+            while (val >= 1024 && idx < units.length - 1) {
+                val /= 1024;
+                idx++;
+            }
+            return `${val.toFixed(idx === 0 ? 0 : 2)} ${units[idx]}`;
+        },
+
+        shortHash(value) {
+            if (!value) return '-';
+            return value.slice(0, 12);
+        },
+
+        formatFingerprint(download) {
+            if (download.etag) return `etag ${this.shortHash(download.etag)}`;
+            if (download.commit_hash) return `commit ${this.shortHash(download.commit_hash)}`;
+            return 'No Hub fingerprint';
+        },
+
+        formatTimestamp(value) {
+            if (!value) return '-';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return value;
+            return date.toLocaleString();
+        },
+
+        downloadStatusText(download) {
+            if (!download) return '';
+            const when = this.formatTimestamp(download.last_downloaded_at);
+            const count = download.download_count || 0;
+            if (count > 1) {
+                return `Last downloaded ${when} (${count}x)`;
+            }
+            return `Downloaded ${when}`;
+        },
+
+        filteredFiles() {
+            let result = this.files;
+
+            if (this.downloadFilter === 'downloaded') {
+                result = result.filter(f => !!this.currentRepoDownloadsByPath[f.path]);
+            } else if (this.downloadFilter === 'not_downloaded') {
+                result = result.filter(f => !this.currentRepoDownloadsByPath[f.path]);
+            }
+
+            const q = this.searchQuery.trim().toLowerCase();
+            if (q) {
+                result = result.filter(f => f.path.toLowerCase().includes(q));
+            }
+            return result;
+        },
+
+        toggleDownloadFilter(mode) {
+            this.downloadFilter = this.downloadFilter === mode ? 'all' : mode;
+        },
+
+        selectedCount() {
+            return this.files.filter(f => f.selected).length;
+        },
+
+        selectedSize() {
+            return this.files.filter(f => f.selected).reduce((sum, f) => sum + (f.size || 0), 0);
+        },
+
+        allVisibleSelected() {
+            const vis = this.filteredFiles();
+            return vis.length > 0 && vis.every(f => f.selected);
+        },
+
+        toggleAll(event) {
+            const checked = event.target.checked;
+            for (const f of this.filteredFiles()) {
+                f.selected = checked;
+            }
+        },
+
+        toggleQuant(q) {
+            const matches = this.files.filter(f => f.quantizations.includes(q));
+            if (!matches.length) {
+                this.activeQuant = q;
+                this.lastScrolledFilePath = null;
+                return;
+            }
+
+            for (const file of matches) {
+                file.selected = true;
+            }
+
+            this.activeQuant = q;
+
+            const visibleMatch = this.filteredFiles().find(file => file.quantizations.includes(q));
+            if (!visibleMatch) {
+                this.lastScrolledFilePath = null;
+                return;
+            }
+
+            this.lastScrolledFilePath = visibleMatch.path;
+            this.$nextTick(() => {
+                const selector = `[data-file-path="${CSS.escape(visibleMatch.path)}"]`;
+                const row = this.$refs.filesTableScroll?.querySelector(selector);
+                row?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            });
+        },
+
+        selectVisible() {
+            for (const f of this.filteredFiles()) f.selected = true;
+        },
+
+        clearSelection() {
+            for (const f of this.files) f.selected = false;
+            this.lastScrolledFilePath = null;
+        },
+
+        async loadFiles() {
+            const input = this.repoInput.trim();
+            if (!input) return;
+            this.loading = true;
+            this.error = false;
+            this.statusMsg = 'Loading files...';
+            this.files = [];
+            this.activeQuant = null;
+            this.lastScrolledFilePath = null;
+
+            try {
+                const res = await fetch('/api/repo/files', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        repo_input: input,
+                        token: this.tokenInput.trim() || null,
+                    }),
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    this.error = true;
+                    this.statusMsg = data.detail || 'Failed to load repo.';
+                    return;
+                }
+                this.repoId = data.repo_id;
+                this.files = data.files.map(f => ({ ...f, selected: false }));
+                this.statusMsg = `Loaded ${this.files.length} files from ${this.repoId}`;
+            } catch (e) {
+                this.error = true;
+                this.statusMsg = 'Network error: ' + e.message;
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async addToQueue() {
+            const selected = this.files.filter(f => f.selected).map(f => f.path);
+            if (!selected.length || !this.repoId) return;
+
+            const res = await fetch('/api/queue/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    repo_id: this.repoId,
+                    files: selected,
+                    token: this.tokenInput.trim() || null,
+                }),
+            });
+            if (res.ok) {
+                this.clearSelection();
+                await this.refreshQueue();
+                await this.refreshDownloads();
+            }
+        },
+
+        async refreshQueue() {
+            try {
+                const res = await fetch('/api/queue');
+                const data = await res.json();
+                if (res.ok) {
+                    this.tasks = data.tasks;
+                    this.polling = this.tasks.some(t => t.status === 'queued' || t.status === 'downloading');
+                }
+            } catch { /* ignore */ }
+        },
+
+        async refreshDownloads() {
+            try {
+                const res = await fetch('/api/downloads');
+                const data = await res.json();
+                if (res.ok) {
+                    this.downloads = data.downloads;
+                }
+            } catch { /* ignore */ }
+        },
+    };
+}
+</script>
+</body>
+</html>
