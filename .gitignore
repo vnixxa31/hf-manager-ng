@@ -13,3 +13,5 @@ downloads/
 downloads.db
 downloads.db-shm
 downloads.db-wal
+
+.ruff_cache
