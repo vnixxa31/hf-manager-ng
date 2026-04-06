@@ -297,11 +297,17 @@ threading.Thread(target=download_worker, daemon=True).start()
 
 
 FRONTEND_FILE = Path(__file__).parent / "frontend.html"
+FRONTEND_JS_FILE = Path(__file__).parent / "frontend.js"
 
 
 @app.get("/")
 def index() -> FileResponse:
         return FileResponse(FRONTEND_FILE, media_type="text/html")
+
+
+@app.get("/frontend.js")
+def frontend_js() -> FileResponse:
+        return FileResponse(FRONTEND_JS_FILE, media_type="text/javascript")
 
 
 @app.post("/api/repo/files")
