@@ -25,7 +25,7 @@ QUANT_PATTERNS = [
         re.compile(r"\b(UD-Q\d+[_A-Z0-9]*)\b", re.IGNORECASE),
         re.compile(r"\b(IQ\d+[_A-Z0-9]*)\b", re.IGNORECASE),
         re.compile(r"\b((?<!UD-)Q\d+(?:_\d+)?[_A-Z0-9]*)\b", re.IGNORECASE),
-        re.compile(r"\b(FP16|FP32|BF16|F16|F32|INT8|INT4|8BIT|4BIT)\b", re.IGNORECASE),
+        re.compile(r"\b(FP16|FP32|BF16|F16|F32|INT8|INT4|8BIT|4BIT|MXFP4_MOE)\b", re.IGNORECASE),
 ]
 
 
@@ -258,7 +258,7 @@ def download_worker() -> None:
                                 repo_id=repo_id,
                                 filename=file_path,
                                 token=token,
-                                local_dir=local_repo_dir,
+                                cache_dir=local_repo_dir,
                         )
                         size_bytes = Path(downloaded_file).stat().st_size
                         etag: str | None = None
