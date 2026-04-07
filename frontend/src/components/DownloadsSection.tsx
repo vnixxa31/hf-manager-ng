@@ -34,7 +34,7 @@ export function DownloadsSection({ downloads }: DownloadsSectionProps) {
       </div>
 
       <div className="overflow-hidden border border-border">
-        <div className="max-h-[360px] overflow-auto">
+        <div className="max-h-90 overflow-auto">
           <Table>
             <TableHeader className="sticky top-0 z-10">
               <TableRow className="border-border bg-muted hover:bg-muted">
