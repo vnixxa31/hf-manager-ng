@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>HF Model Downloader</title>
+		<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+	</head>
+	<body
+		x-data="app()"
+		x-init="init()"
+		class="min-h-screen antialiased [&_[x-cloak]]:hidden"
+		:class="darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'"
+	>
+		<div
+			class="mx-auto max-w-[1080px] px-6 py-12 pb-16 font-mono text-sm leading-6 transition-colors"
+		>
+			<header
+				class="mb-10 flex flex-wrap items-end justify-between gap-4 border-b pb-5"
+				:class="darkMode ? 'border-slate-700' : 'border-slate-300'"
+			>
+				<div>
+					<h1 class="font-serif text-3xl leading-9 tracking-tight">
+						HF Model Downloader
+					</h1>
+					<p
+						class="mt-1.5 text-xs"
+						:class="darkMode ? 'text-slate-400' : 'text-slate-500'"
+					>
+						Browse repos. Select quantizations. Queue downloads.
+					</p>
+				</div>
+
+				<div class="flex items-center gap-3">
+					<span
+						class="inline-flex items-center gap-2 text-xs"
+						:class="darkMode ? 'text-slate-400' : 'text-slate-500'"
+					>
+						<span
+							class="h-1.5 w-1.5 rounded-full"
+							:class="polling ? 'bg-emerald-500 animate-pulse' : (darkMode ? 'bg-slate-500' : 'bg-slate-400')"
+						></span>
+						<span x-text="polling ? 'polling' : 'idle'"></span>
+					</span>
+
+					<button
+						class="inline-flex h-8 w-8 items-center justify-center border transition"
+						:class="darkMode ? 'border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'"
+						@click="toggleTheme()"
+						:title="darkMode ? 'Switch to light mode' : 'Switch to dark mode'"
+					>
+						<template x-if="darkMode">
+							<svg
+								class="h-4 w-4"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<circle cx="12" cy="12" r="5" />
+								<line x1="12" y1="1" x2="12" y2="3" />
+								<line x1="12" y1="21" x2="12" y2="23" />
+								<line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+								<line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+								<line x1="1" y1="12" x2="3" y2="12" />
+								<line x1="21" y1="12" x2="23" y2="12" />
+								<line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+								<line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+							</svg>
+						</template>
+						<template x-if="!darkMode">
+							<svg
+								class="h-4 w-4"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+							</svg>
+						</template>
+					</button>
+				</div>
+			</header>
+
+			<section
+				class="border p-5"
+				:class="darkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-300 bg-white'"
+			>
+				<div class="flex flex-wrap gap-2">
+					<input
+						x-model="repoInput"
+						@keydown.enter="loadFiles()"
+						type="text"
+						placeholder="owner/model or full HF URL"
+						class="min-w-[200px] flex-1 border px-3 py-2 text-sm transition outline-none focus:ring-2"
+						:class="darkMode ? 'border-slate-600 bg-slate-800 text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:ring-blue-500/40' : 'border-slate-300 bg-slate-100 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/30'"
+					/>
+					<input
+						x-model="tokenInput"
+						type="password"
+						placeholder="HF token (optional)"
+						class="w-52 border px-3 py-2 text-sm transition outline-none focus:ring-2 max-sm:w-full"
+						:class="darkMode ? 'border-slate-600 bg-slate-800 text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:ring-blue-500/40' : 'border-slate-300 bg-slate-100 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/30'"
+					/>
+					<button
+						@click="loadFiles()"
+						:disabled="loading"
+						class="inline-flex items-center justify-center gap-1.5 border border-blue-600 bg-blue-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+					>
+						<template x-if="!loading">
+							<span>Load Files</span>
+						</template>
+						<template x-if="loading">
+							<span class="inline-flex items-center gap-1.5">
+								<span
+									class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-transparent border-t-current border-r-current"
+								></span>
+								Loading
+							</span>
+						</template>
+					</button>
+				</div>
+
+				<p
+					class="mt-3 text-xs"
+					:class="error ? 'text-rose-500' : (darkMode ? 'text-slate-400' : 'text-slate-500')"
+					x-text="statusMsg"
+				></p>
+			</section>
+
+			<section
+				x-show="files.length > 0"
+				x-cloak
+				x-transition.opacity
+				class="mt-8 border p-5"
+				:class="darkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-300 bg-white'"
+			>
+				<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+					<h2 class="font-serif text-xl leading-7">
+						Files
+						<span
+							class="font-mono text-xs"
+							:class="darkMode ? 'text-slate-400' : 'text-slate-500'"
+							x-text="'(' + filteredFiles().length + '/' + files.length + ')'"
+						></span>
+					</h2>
+					<span
+						class="text-xs"
+						:class="darkMode ? 'text-slate-400' : 'text-slate-500'"
+						x-text="selectedCount() + ' selected - ' + formatSize(selectedSize())"
+					></span>
+				</div>
+
+				<div class="mb-3 flex flex-wrap items-center gap-2">
+					<div class="relative min-w-[200px] flex-1">
+						<svg
+							class="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2"
+							:class="darkMode ? 'text-slate-500' : 'text-slate-400'"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<circle cx="11" cy="11" r="8" />
+							<line x1="21" y1="21" x2="16.65" y2="16.65" />
+						</svg>
+						<input
+							x-model="searchQuery"
+							type="text"
+							placeholder="Filter filenames..."
+							class="w-full border py-2 pr-3 pl-8 text-sm transition outline-none focus:ring-2"
+							:class="darkMode ? 'border-slate-600 bg-slate-800 text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:ring-blue-500/40' : 'border-slate-300 bg-slate-100 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/30'"
+						/>
+					</div>
+
+					<div class="flex flex-wrap gap-1.5">
+						<button
+							@click="toggleDownloadFilter('downloaded')"
+							class="inline-flex items-center border px-3 py-2 text-xs transition disabled:cursor-not-allowed disabled:opacity-50"
+							:class="downloadFilter === 'downloaded' ? 'border-blue-500 bg-blue-50 text-blue-700' : (darkMode ? 'border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50')"
+						>
+							Downloaded
+						</button>
+						<button
+							@click="toggleDownloadFilter('not_downloaded')"
+							class="inline-flex items-center border px-3 py-2 text-xs transition disabled:cursor-not-allowed disabled:opacity-50"
+							:class="downloadFilter === 'not_downloaded' ? 'border-blue-500 bg-blue-50 text-blue-700' : (darkMode ? 'border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50')"
+						>
+							Not Downloaded
+						</button>
+						<button
+							@click="selectVisible()"
+							class="inline-flex items-center border px-3 py-2 text-xs transition"
+							:class="darkMode ? 'border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'"
+						>
+							Select Visible
+						</button>
+						<button
+							@click="clearSelection()"
+							class="inline-flex items-center border px-3 py-2 text-xs transition"
+							:class="darkMode ? 'border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'"
+						>
+							Clear
+						</button>
+					</div>
+				</div>
+
+				<div x-show="quantTags.length > 0" class="mb-3 flex flex-wrap gap-1.5">
+					<template x-for="q in quantTags" :key="q">
+						<button
+							@click="toggleQuant(q)"
+							class="border px-2.5 py-1 text-xs font-medium transition"
+							:class="activeQuant === q ? 'border-blue-600 bg-blue-600 text-white' : (darkMode ? 'border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50')"
+							x-text="q"
+						></button>
+					</template>
+				</div>
+
+				<div
+					class="overflow-hidden border"
+					:class="darkMode ? 'border-slate-700' : 'border-slate-300'"
+				>
+					<div x-ref="filesTableScroll" class="max-h-[420px] overflow-auto">
+						<table class="w-full border-collapse text-xs">
+							<thead class="sticky top-0 z-10">
+								<tr>
+									<th
+										class="w-10 border-b px-3 py-2 text-left text-xs font-semibold tracking-wide uppercase"
+										:class="darkMode ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-slate-300 bg-slate-100 text-slate-500'"
+									>
+										<input
+											type="checkbox"
+											class="h-3.5 w-3.5 accent-blue-600"
+											@change="toggleAll($event)"
+											:checked="allVisibleSelected()"
+										/>
+									</th>
+									<th
+										class="border-b px-3 py-2 text-left text-xs font-semibold tracking-wide uppercase"
+										:class="darkMode ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-slate-300 bg-slate-100 text-slate-500'"
+									>
+										File
+									</th>
+									<th
+										class="w-24 border-b px-3 py-2 text-right text-xs font-semibold tracking-wide uppercase"
+										:class="darkMode ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-slate-300 bg-slate-100 text-slate-500'"
+									>
+										Size
+									</th>
+									<th
+										class="w-36 border-b px-3 py-2 text-left text-xs font-semibold tracking-wide uppercase"
+										:class="darkMode ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-slate-300 bg-slate-100 text-slate-500'"
+									>
+										Quant
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								<template x-for="file in filteredFiles()" :key="file.path">
+									<tr
+										class="cursor-pointer border-b transition last:border-b-0"
+										:class="[
+                                    darkMode ? 'border-slate-700 hover:bg-slate-800/70' : 'border-slate-300 hover:bg-slate-50',
+                                    lastScrolledFilePath === file.path ? (darkMode ? 'bg-blue-900/30' : 'bg-blue-50') : ''
+                                ]"
+										:data-file-path="file.path"
+										@click="file.selected = !file.selected"
+									>
+										<td class="px-3 py-1.5" @click.stop>
+											<input
+												type="checkbox"
+												class="h-3.5 w-3.5 accent-blue-600"
+												x-model="file.selected"
+											/>
+										</td>
+										<td class="px-3 py-1.5 align-middle">
+											<div class="flex min-w-0 items-center gap-2">
+												<code class="text-xs" x-text="file.path"></code>
+												<span
+													x-show="currentRepoDownloadsByPath[file.path]"
+													class="rounded border px-1.5 py-0.5 text-xs font-medium tracking-wide uppercase"
+													:class="darkMode ? 'border-emerald-700 bg-emerald-900/40 text-emerald-300' : 'border-emerald-300 bg-emerald-50 text-emerald-700'"
+													:title="downloadStatusText(currentRepoDownloadsByPath[file.path])"
+												>
+													downloaded
+												</span>
+											</div>
+											<div
+												x-show="currentRepoDownloadsByPath[file.path]"
+												class="mt-0.5 text-xs"
+												:class="darkMode ? 'text-slate-400' : 'text-slate-500'"
+												x-text="downloadStatusText(currentRepoDownloadsByPath[file.path])"
+											></div>
+										</td>
+										<td class="px-3 py-1.5 text-right align-middle">
+											<span
+												class="tabular-nums"
+												:class="darkMode ? 'text-slate-400' : 'text-slate-500'"
+												x-text="formatSize(file.size)"
+											></span>
+										</td>
+										<td class="px-3 py-1.5 align-middle">
+											<template x-for="q in file.quantizations" :key="q">
+												<span
+													class="mr-1 inline-block border-l-2 px-1.5 py-0.5 text-xs"
+													:class="darkMode ? 'border-blue-400 bg-slate-800 text-slate-300' : 'border-blue-500 bg-slate-100 text-slate-600'"
+													x-text="q"
+												></span>
+											</template>
+										</td>
+									</tr>
+								</template>
+							</tbody>
+						</table>
+					</div>
+				</div>
+
+				<div class="mt-4 flex items-center justify-between">
+					<button
+						@click="addToQueue()"
+						:disabled="selectedCount() === 0"
+						class="inline-flex items-center gap-1.5 border border-blue-600 bg-blue-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						Add <span x-text="selectedCount()"></span> file(s) to queue
+					</button>
+				</div>
+			</section>
+
+			<section
+				x-show="tasks.length > 0"
+				x-cloak
+				x-transition.opacity
+				class="mt-8 border p-5"
+				:class="darkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-300 bg-white'"
+			>
+				<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+					<h2 class="font-serif text-xl leading-7">Download Queue</h2>
+					<span
+						class="text-xs"
+						:class="darkMode ? 'text-slate-400' : 'text-slate-500'"
+						x-text="tasks.length + ' task(s)'"
+					></span>
+				</div>
+
+				<div
+					class="overflow-hidden border"
+					:class="darkMode ? 'border-slate-700' : 'border-slate-300'"
+				>
+					<div class="max-h-[320px] overflow-auto">
+						<table class="w-full border-collapse text-xs">
+							<thead class="sticky top-0 z-10">
+								<tr>
+									<th
+										class="w-20 border-b px-3 py-2 text-left text-xs font-semibold tracking-wide uppercase"
+										:class="darkMode ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-slate-300 bg-slate-100 text-slate-500'"
+									>
+										Task
+									</th>
+									<th
+										class="border-b px-3 py-2 text-left text-xs font-semibold tracking-wide uppercase"
+										:class="darkMode ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-slate-300 bg-slate-100 text-slate-500'"
+									>
+										Repo
+									</th>
+									<th
+										class="border-b px-3 py-2 text-left text-xs font-semibold tracking-wide uppercase"
+										:class="darkMode ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-slate-300 bg-slate-100 text-slate-500'"
+									>
+										File
+									</th>
+									<th
+										class="w-28 border-b px-3 py-2 text-left text-xs font-semibold tracking-wide uppercase"
+										:class="darkMode ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-slate-300 bg-slate-100 text-slate-500'"
+									>
+										Status
+									</th>
+									<th
+										class="border-b px-3 py-2 text-left text-xs font-semibold tracking-wide uppercase"
+										:class="darkMode ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-slate-300 bg-slate-100 text-slate-500'"
+									>
+										Message
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								<template x-for="task in tasks" :key="task.task_id">
+									<tr
+										class="border-b last:border-b-0"
+										:class="darkMode ? 'border-slate-700' : 'border-slate-300'"
+									>
+										<td class="px-3 py-1.5">
+											<code
+												class="text-xs tabular-nums"
+												:class="darkMode ? 'text-slate-400' : 'text-slate-500'"
+												x-text="task.task_id.slice(0, 8)"
+											></code>
+										</td>
+										<td class="px-3 py-1.5">
+											<code x-text="task.repo_id"></code>
+										</td>
+										<td class="px-3 py-1.5">
+											<code x-text="task.file_path"></code>
+										</td>
+										<td class="px-3 py-1.5">
+											<span
+												class="inline-flex items-center gap-1.5 text-xs"
+												:class="{
+                                            'text-amber-600': task.status === 'queued',
+                                            'text-blue-600': task.status === 'downloading',
+                                            'text-emerald-600': task.status === 'completed',
+                                            'text-rose-600': task.status === 'failed'
+                                        }"
+											>
+												<span
+													class="h-1.5 w-1.5 rounded-full"
+													:class="{
+                                                'bg-amber-600': task.status === 'queued',
+                                                'bg-blue-600 animate-pulse': task.status === 'downloading',
+                                                'bg-emerald-600': task.status === 'completed',
+                                                'bg-rose-600': task.status === 'failed'
+                                            }"
+												></span>
+												<span x-text="task.status"></span>
+											</span>
+										</td>
+										<td class="px-3 py-1.5">
+											<span
+												class="block max-w-72 truncate"
+												:class="darkMode ? 'text-slate-400' : 'text-slate-500'"
+												x-text="task.message || ''"
+											></span>
+										</td>
+									</tr>
+								</template>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+
+			<section
+				x-show="downloads.length > 0"
+				x-cloak
+				x-transition.opacity
+				class="mt-8 border p-5"
+				:class="darkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-300 bg-white'"
+			>
+				<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+					<div>
+						<h2 class="font-serif text-xl leading-7">Tracked Downloads</h2>
+						<span
+							class="mt-1 block text-xs"
+							:class="darkMode ? 'text-slate-400' : 'text-slate-500'"
+							>Durable inventory from SQLite, ordered by last successful
+							download.</span
+						>
+					</div>
+					<span
+						class="text-xs"
+						:class="darkMode ? 'text-slate-400' : 'text-slate-500'"
+						x-text="downloads.length + ' file(s)'"
+					></span>
+				</div>
+
+				<div
+					class="overflow-hidden border"
+					:class="darkMode ? 'border-slate-700' : 'border-slate-300'"
+				>
+					<div class="max-h-[360px] overflow-auto">
+						<table class="w-full border-collapse text-xs">
+							<thead class="sticky top-0 z-10">
+								<tr>
+									<th
+										class="border-b px-3 py-2 text-left text-xs font-semibold tracking-wide uppercase"
+										:class="darkMode ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-slate-300 bg-slate-100 text-slate-500'"
+									>
+										Repo
+									</th>
+									<th
+										class="border-b px-3 py-2 text-left text-xs font-semibold tracking-wide uppercase"
+										:class="darkMode ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-slate-300 bg-slate-100 text-slate-500'"
+									>
+										File
+									</th>
+									<th
+										class="w-24 border-b px-3 py-2 text-right text-xs font-semibold tracking-wide uppercase"
+										:class="darkMode ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-slate-300 bg-slate-100 text-slate-500'"
+									>
+										Size
+									</th>
+									<th
+										class="border-b px-3 py-2 text-left text-xs font-semibold tracking-wide uppercase"
+										:class="darkMode ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-slate-300 bg-slate-100 text-slate-500'"
+									>
+										Fingerprint
+									</th>
+									<th
+										class="border-b px-3 py-2 text-left text-xs font-semibold tracking-wide uppercase"
+										:class="darkMode ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-slate-300 bg-slate-100 text-slate-500'"
+									>
+										Last Download
+									</th>
+									<th
+										class="border-b px-3 py-2 text-right text-xs font-semibold tracking-wide uppercase"
+										:class="darkMode ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-slate-300 bg-slate-100 text-slate-500'"
+									>
+										Count
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								<template
+									x-for="download in downloads"
+									:key="download.repo_id + '::' + download.file_path"
+								>
+									<tr
+										class="border-b last:border-b-0"
+										:class="darkMode ? 'border-slate-700' : 'border-slate-300'"
+									>
+										<td class="px-3 py-1.5">
+											<code x-text="download.repo_id"></code>
+										</td>
+										<td class="px-3 py-1.5">
+											<div>
+												<code x-text="download.file_path"></code>
+											</div>
+											<div
+												class="max-w-72 truncate text-xs"
+												:class="darkMode ? 'text-slate-400' : 'text-slate-500'"
+												:title="download.local_path"
+												x-text="download.local_path"
+											></div>
+											<div>
+												<template
+													x-for="q in download.quantizations"
+													:key="q"
+												>
+													<span
+														class="mr-1 inline-block border-l-2 px-1.5 py-0.5 text-xs"
+														:class="darkMode ? 'border-blue-400 bg-slate-800 text-slate-300' : 'border-blue-500 bg-slate-100 text-slate-600'"
+														x-text="q"
+													></span>
+												</template>
+											</div>
+										</td>
+										<td class="px-3 py-1.5 text-right">
+											<span
+												class="tabular-nums"
+												:class="darkMode ? 'text-slate-400' : 'text-slate-500'"
+												x-text="formatSize(download.size_bytes)"
+											></span>
+										</td>
+										<td class="px-3 py-1.5">
+											<div
+												class="text-xs"
+												:class="darkMode ? 'text-slate-400' : 'text-slate-500'"
+												x-text="formatFingerprint(download)"
+											></div>
+											<div
+												class="text-xs"
+												:class="darkMode ? 'text-slate-400' : 'text-slate-500'"
+												x-show="download.commit_hash"
+												x-text="'commit ' + shortHash(download.commit_hash)"
+											></div>
+										</td>
+										<td class="px-3 py-1.5">
+											<span
+												class="text-xs"
+												:class="darkMode ? 'text-slate-400' : 'text-slate-500'"
+												x-text="formatTimestamp(download.last_downloaded_at)"
+											></span>
+										</td>
+										<td class="px-3 py-1.5 text-right">
+											<span
+												class="text-xs tabular-nums"
+												:class="darkMode ? 'text-slate-400' : 'text-slate-500'"
+												x-text="download.download_count"
+											></span>
+										</td>
+									</tr>
+								</template>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+		</div>
+
+		<script src="frontend.js"></script>
+	</body>
+</html>
