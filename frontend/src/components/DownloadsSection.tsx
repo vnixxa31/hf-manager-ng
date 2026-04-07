@@ -24,9 +24,9 @@ export function DownloadsSection({ downloads }: DownloadsSectionProps) {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-sans text-xl leading-7">Tracked Downloads</h2>
-          <span className="mt-1 block text-xs text-muted-foreground">
+          <p className="mt-1 block text-xs text-muted-foreground">
             Durable inventory from SQLite, ordered by last successful download.
-          </span>
+          </p>
         </div>
         <span className="text-xs text-muted-foreground">
           {downloads.length} file(s)
@@ -68,15 +68,7 @@ export function DownloadsSection({ downloads }: DownloadsSectionProps) {
                     <code>{dl.repo_id}</code>
                   </TableCell>
                   <TableCell className="px-3 py-1.5">
-                    <div>
-                      <code>{dl.file_path}</code>
-                    </div>
-                    <div
-                      className="max-w-72 truncate text-xs text-muted-foreground"
-                      title={dl.local_path}
-                    >
-                      {dl.local_path}
-                    </div>
+                    <code>{dl.file_path}</code>
                     <div>
                       {dl.quantizations.map((q) => (
                         <span

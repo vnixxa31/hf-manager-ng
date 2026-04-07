@@ -229,7 +229,7 @@ export default function App() {
   )
 
   return (
-    <div className="mx-auto max-w-270 px-6 py-12 pb-16 font-mono text-sm leading-6 transition-colors">
+    <div className="mx-auto max-w-270 px-6 py-12 pb-16 text-sm leading-6 transition-colors">
       <AppHeader polling={polling} />
 
       <RepoSection
