@@ -138,7 +138,7 @@ export function FilesSection({
 
 			{/* File table */}
 			<div className="border-border overflow-hidden border">
-				<div ref={scrollRef} className="max-h-[420px] overflow-auto">
+				<div ref={scrollRef} className="max-h-105 overflow-auto">
 					<Table>
 						<TableHeader className="sticky top-0 z-10">
 							<TableRow className="border-border bg-muted hover:bg-muted">
