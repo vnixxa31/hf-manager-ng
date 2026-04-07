@@ -1,10 +1,10 @@
 .PHONY: build dev prod clean
 
 build:
-	pnpm build
+	vp build
 
 dev:
-	uv run python main.py & pnpm dev
+	uv run python main.py & vp dev
 
 prod: build
 	uv run python main.py

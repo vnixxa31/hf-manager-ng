@@ -3,6 +3,8 @@ import { useEffect, useRef } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import {
 	Table,
 	TableBody,
@@ -11,52 +13,35 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { useAppState } from "@/hooks/use-app-state";
 import { formatSize, downloadStatusText } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { HFFile, DownloadRecord, DownloadFilter } from "@/types";
 
-interface FilesSectionProps {
-	files: HFFile[];
-	filteredFiles: HFFile[];
-	quantTags: string[];
-	activeQuant: string | null;
-	searchQuery: string;
-	downloadFilter: DownloadFilter;
-	currentRepoDownloadsByPath: Record<string, DownloadRecord>;
-	lastScrolledFilePath: string | null;
-	onSearchChange: (q: string) => void;
-	onDownloadFilterToggle: (mode: "downloaded" | "not_downloaded") => void;
-	onSelectVisible: () => void;
-	onClearSelection: () => void;
-	onToggleQuant: (q: string) => void;
-	onToggleFileSelection: (path: string) => void;
-	onToggleAll: (checked: boolean) => void;
-	onAddToQueue: () => void;
-}
+export function FilesSection() {
+	const {
+		files,
+		filteredFiles,
+		quantTags,
+		activeQuant,
+		searchQuery,
+		downloadFilter,
+		currentRepoDownloadsByPath,
+		lastScrolledFilePath,
+		selectedPaths,
+		selectedCount,
+		selectedSize,
+		allVisibleSelected,
+		setSearchQuery,
+		toggleDownloadFilter,
+		selectAllVisible,
+		clearSelection,
+		toggleQuant,
+		toggleFileSelection,
+		toggleAllVisible,
+		handleAddToQueue,
+	} = useAppState();
 
-export function FilesSection({
-	files,
-	filteredFiles,
-	quantTags,
-	activeQuant,
-	searchQuery,
-	downloadFilter,
-	currentRepoDownloadsByPath,
-	lastScrolledFilePath,
-	onSearchChange,
-	onDownloadFilterToggle,
-	onSelectVisible,
-	onClearSelection,
-	onToggleQuant,
-	onToggleFileSelection,
-	onToggleAll,
-	onAddToQueue,
-}: FilesSectionProps) {
 	const scrollRef = useRef<HTMLDivElement>(null);
-
-	const selectedCount = files.filter((f) => f.selected).length;
-	const selectedSize = files.filter((f) => f.selected).reduce((sum, f) => sum + (f.size || 0), 0);
-	const allVisibleSelected = filteredFiles.length > 0 && filteredFiles.every((f) => f.selected);
 
 	useEffect(() => {
 		if (!lastScrolledFilePath || !scrollRef.current) return;
@@ -66,51 +51,60 @@ export function FilesSection({
 	}, [lastScrolledFilePath]);
 
 	return (
-		<section className="border-border bg-card mt-8 border p-5">
+		<section aria-labelledby="files-heading" className="border-border bg-card mt-8 border p-5">
 			<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-				<h2 className="font-sans text-xl leading-7">
+				<h2 id="files-heading" className="font-sans text-xl leading-7">
 					Files{" "}
 					<span className="text-muted-foreground font-mono text-xs">
 						({filteredFiles.length}/{files.length})
 					</span>
 				</h2>
-				<span className="text-muted-foreground text-xs">
+				<p className="text-muted-foreground text-xs" aria-live="polite">
 					{selectedCount} selected — {formatSize(selectedSize)}
-				</span>
+				</p>
 			</div>
 
 			{/* Filters row */}
 			<div className="mb-3 flex flex-wrap items-center gap-2">
 				<div className="relative min-w-50 flex-1">
-					<MagnifyingGlassIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
-					<input
+					<MagnifyingGlassIcon
+						aria-hidden="true"
+						className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
+					/>
+					<label className="sr-only" htmlFor="file-search">
+						Filter filenames
+					</label>
+					<Input
+						id="file-search"
 						value={searchQuery}
-						onChange={(e) => onSearchChange(e.target.value)}
-						type="text"
+						onChange={(e) => setSearchQuery(e.target.value)}
+						type="search"
 						placeholder="Filter filenames..."
-						className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-none border bg-transparent py-2 pr-3 pl-8 text-xs transition-colors outline-none focus-visible:ring-1"
+						className="h-9 w-full py-2 pr-3 pl-8"
 					/>
 				</div>
 
-				<div className="flex flex-wrap gap-1.5">
+				<div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter actions">
 					<Button
 						variant={downloadFilter === "downloaded" ? "default" : "outline"}
 						size="sm"
-						onClick={() => onDownloadFilterToggle("downloaded")}
+						aria-pressed={downloadFilter === "downloaded"}
+						onClick={() => toggleDownloadFilter("downloaded")}
 					>
 						Downloaded
 					</Button>
 					<Button
 						variant={downloadFilter === "not_downloaded" ? "default" : "outline"}
 						size="sm"
-						onClick={() => onDownloadFilterToggle("not_downloaded")}
+						aria-pressed={downloadFilter === "not_downloaded"}
+						onClick={() => toggleDownloadFilter("not_downloaded")}
 					>
 						Not Downloaded
 					</Button>
-					<Button variant="outline" size="sm" onClick={onSelectVisible}>
+					<Button variant="outline" size="sm" onClick={selectAllVisible}>
 						Select Visible
 					</Button>
-					<Button variant="outline" size="sm" onClick={onClearSelection}>
+					<Button variant="outline" size="sm" onClick={clearSelection}>
 						Clear
 					</Button>
 				</div>
@@ -118,36 +112,46 @@ export function FilesSection({
 
 			{/* Quant chips */}
 			{quantTags.length > 0 && (
-				<div className="mb-3 flex flex-wrap gap-1.5">
+				<div
+					className="mb-3 flex flex-wrap gap-1.5"
+					role="group"
+					aria-label="Quantization filters"
+				>
 					{quantTags.map((q) => (
-						<button
+						<Badge
 							key={q}
-							onClick={() => onToggleQuant(q)}
-							className={cn(
-								"border px-2.5 py-1 text-xs font-medium transition-colors",
-								activeQuant === q
-									? "border-primary bg-primary text-primary-foreground"
-									: "border-border bg-card text-foreground hover:bg-muted",
-							)}
+							role="button"
+							tabIndex={0}
+							aria-pressed={activeQuant === q}
+							onClick={() => toggleQuant(q)}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" || e.key === " ") {
+									e.preventDefault();
+									toggleQuant(q);
+								}
+							}}
+							variant={activeQuant === q ? "default" : "outline"}
+							className="cursor-pointer"
 						>
 							{q}
-						</button>
+						</Badge>
 					))}
 				</div>
 			)}
 
 			{/* File table */}
 			<div className="border-border overflow-hidden border">
-				<div ref={scrollRef} className="max-h-105 overflow-auto">
+				<div ref={scrollRef} className="max-h-105 overflow-auto" tabIndex={-1}>
 					<Table>
 						<TableHeader className="sticky top-0 z-10">
 							<TableRow className="border-border bg-muted hover:bg-muted">
 								<TableHead className="border-border w-10 px-3 py-2">
-									<input
-										type="checkbox"
-										className="accent-primary size-3.5"
+									<Checkbox
 										checked={allVisibleSelected}
-										onChange={(e) => onToggleAll(e.target.checked)}
+										onCheckedChange={(checked) =>
+											toggleAllVisible(checked === true)
+										}
+										aria-label="Select all visible files"
 									/>
 								</TableHead>
 								<TableHead className="border-border text-muted-foreground px-3 py-2 text-xs font-semibold tracking-wide uppercase">
@@ -164,11 +168,13 @@ export function FilesSection({
 						<TableBody>
 							{filteredFiles.map((file) => {
 								const dlRecord = currentRepoDownloadsByPath[file.path];
+								const isSelected = selectedPaths.has(file.path);
+
 								return (
 									<TableRow
 										key={file.path}
 										data-file-path={file.path}
-										onClick={() => onToggleFileSelection(file.path)}
+										onClick={() => toggleFileSelection(file.path)}
 										className={cn(
 											"cursor-pointer border-border",
 											lastScrolledFilePath === file.path && "bg-primary/10",
@@ -178,23 +184,19 @@ export function FilesSection({
 											className="px-3 py-1.5"
 											onClick={(e) => e.stopPropagation()}
 										>
-											<input
-												type="checkbox"
-												className="accent-primary size-3.5"
-												checked={file.selected}
-												onChange={() => onToggleFileSelection(file.path)}
+											<Checkbox
+												checked={isSelected}
+												onCheckedChange={() =>
+													toggleFileSelection(file.path)
+												}
+												aria-label={`Select ${file.path}`}
 											/>
 										</TableCell>
 										<TableCell className="px-3 py-1.5 align-middle">
 											<div className="flex min-w-0 items-center gap-2">
 												<code className="text-xs">{file.path}</code>
 												{dlRecord && (
-													<Badge
-														variant="outline"
-														className="border-emerald-600 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
-													>
-														downloaded
-													</Badge>
+													<Badge variant="secondary">downloaded</Badge>
 												)}
 											</div>
 											{dlRecord && (
@@ -210,12 +212,9 @@ export function FilesSection({
 										</TableCell>
 										<TableCell className="px-3 py-1.5 align-middle">
 											{file.quantizations.map((q) => (
-												<span
-													key={q}
-													className="border-primary text-muted-foreground mr-1 inline-block border-l-2 px-1.5 py-0.5 text-xs"
-												>
+												<Badge key={q} variant="outline" className="mr-1">
 													{q}
-												</span>
+												</Badge>
 											))}
 										</TableCell>
 									</TableRow>
@@ -228,7 +227,11 @@ export function FilesSection({
 
 			{/* Add to queue */}
 			<div className="mt-4">
-				<Button onClick={onAddToQueue} disabled={selectedCount === 0} className="gap-1.5">
+				<Button
+					onClick={() => void handleAddToQueue()}
+					disabled={selectedCount === 0}
+					className="gap-1.5"
+				>
 					Add {selectedCount} file(s) to queue
 				</Button>
 			</div>

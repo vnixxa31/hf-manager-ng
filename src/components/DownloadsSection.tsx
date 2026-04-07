@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import {
 	Table,
 	TableBody,
@@ -6,24 +7,27 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { formatSize, formatFingerprint, formatTimestamp, shortHash } from "@/lib/format";
-import type { DownloadRecord } from "@/types";
+import { useAppState } from "@/hooks/use-app-state";
+import { formatSize, formatFingerprint, formatTimestamp } from "@/lib/format";
 
-interface DownloadsSectionProps {
-	downloads: DownloadRecord[];
-}
+export function DownloadsSection() {
+	const { downloads } = useAppState();
 
-export function DownloadsSection({ downloads }: DownloadsSectionProps) {
 	return (
-		<section className="border-border bg-card mt-8 border p-5">
+		<section
+			aria-labelledby="downloads-heading"
+			className="border-border bg-card mt-8 border p-5"
+		>
 			<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
 				<div>
-					<h2 className="font-sans text-xl leading-7">Tracked Downloads</h2>
+					<h2 id="downloads-heading" className="font-sans text-xl leading-7">
+						Tracked Downloads
+					</h2>
 					<p className="text-muted-foreground mt-1 block text-xs">
 						Durable inventory from SQLite, ordered by last successful download.
 					</p>
 				</div>
-				<span className="text-muted-foreground text-xs">{downloads.length} file(s)</span>
+				<p className="text-muted-foreground text-xs">{downloads.length} file(s)</p>
 			</div>
 
 			<div className="border-border overflow-hidden border">
@@ -62,16 +66,15 @@ export function DownloadsSection({ downloads }: DownloadsSectionProps) {
 									</TableCell>
 									<TableCell className="px-3 py-1.5">
 										<code>{dl.file_path}</code>
-										<div>
-											{dl.quantizations.map((q) => (
-												<span
-													key={q}
-													className="border-primary text-muted-foreground mr-1 inline-block border-l-2 px-1.5 py-0.5 text-xs"
-												>
-													{q}
-												</span>
-											))}
-										</div>
+										{dl.quantizations.length > 0 && (
+											<div className="mt-0.5 flex flex-wrap gap-1">
+												{dl.quantizations.map((q) => (
+													<Badge key={q} variant="outline">
+														{q}
+													</Badge>
+												))}
+											</div>
+										)}
 									</TableCell>
 									<TableCell className="px-3 py-1.5 text-right">
 										<span className="text-muted-foreground tabular-nums">
@@ -79,14 +82,9 @@ export function DownloadsSection({ downloads }: DownloadsSectionProps) {
 										</span>
 									</TableCell>
 									<TableCell className="px-3 py-1.5">
-										<div className="text-muted-foreground text-xs">
+										<span className="text-muted-foreground text-xs">
 											{formatFingerprint(dl)}
-										</div>
-										{dl.commit_hash && (
-											<div className="text-muted-foreground text-xs">
-												commit {shortHash(dl.commit_hash)}
-											</div>
-										)}
+										</span>
 									</TableCell>
 									<TableCell className="px-3 py-1.5">
 										<span className="text-muted-foreground text-xs">

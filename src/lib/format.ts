@@ -2,7 +2,7 @@ import type { DownloadRecord } from "@/types";
 
 export function formatSize(bytes: number | null | undefined): string {
 	if (bytes == null || bytes === 0) return "-";
-	const units = ["B", "KB", "MB", "GB", "TB"];
+	const units = ["B", "KB", "MB", "GB", "TB"] as const;
 	let val = bytes;
 	let idx = 0;
 	while (val >= 1024 && idx < units.length - 1) {
@@ -12,8 +12,7 @@ export function formatSize(bytes: number | null | undefined): string {
 	return `${val.toFixed(idx === 0 ? 0 : 2)} ${units[idx]}`;
 }
 
-export function shortHash(value: string | null | undefined): string {
-	if (!value) return "-";
+function shortHash(value: string): string {
 	return value.slice(0, 12);
 }
 

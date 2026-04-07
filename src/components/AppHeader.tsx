@@ -2,11 +2,8 @@ import { SunIcon, MoonIcon } from "@phosphor-icons/react";
 
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
+import { useAppState } from "@/hooks/use-app-state";
 import { cn } from "@/lib/utils";
-
-interface AppHeaderProps {
-	polling: boolean;
-}
 
 function getIsDark(theme: string): boolean {
 	if (theme === "dark") return true;
@@ -14,7 +11,8 @@ function getIsDark(theme: string): boolean {
 	return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
-export function AppHeader({ polling }: AppHeaderProps) {
+export function AppHeader() {
+	const { polling } = useAppState();
 	const { theme, setTheme } = useTheme();
 	const isDark = getIsDark(theme);
 
@@ -28,11 +26,16 @@ export function AppHeader({ polling }: AppHeaderProps) {
 			</div>
 
 			<div className="flex items-center gap-3">
-				<span className="text-muted-foreground inline-flex items-center gap-2 text-xs">
+				<span
+					className="text-muted-foreground inline-flex items-center gap-2 text-xs"
+					role="status"
+					aria-live="polite"
+				>
 					<span
+						aria-hidden="true"
 						className={cn(
 							"size-1.5 rounded-full",
-							polling ? "animate-pulse bg-emerald-500" : "bg-muted-foreground/40",
+							polling ? "animate-pulse bg-primary" : "bg-muted-foreground/40",
 						)}
 					/>
 					{polling ? "polling" : "idle"}
@@ -42,9 +45,13 @@ export function AppHeader({ polling }: AppHeaderProps) {
 					variant="outline"
 					size="icon"
 					onClick={() => setTheme(isDark ? "light" : "dark")}
-					title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+					aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
 				>
-					{isDark ? <SunIcon /> : <MoonIcon />}
+					{isDark ? (
+						<SunIcon data-icon="inline-start" />
+					) : (
+						<MoonIcon data-icon="inline-start" />
+					)}
 				</Button>
 			</div>
 		</header>

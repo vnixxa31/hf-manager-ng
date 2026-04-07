@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import {
 	Table,
 	TableBody,
@@ -6,38 +7,28 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
+import { useAppState } from "@/hooks/use-app-state";
 import type { DownloadTask } from "@/types";
 
-interface QueueSectionProps {
-	tasks: DownloadTask[];
-}
+type TaskStatus = DownloadTask["status"];
 
-const STATUS_CLASSES: Record<DownloadTask["status"], { text: string; dot: string }> = {
-	queued: {
-		text: "text-amber-600",
-		dot: "bg-amber-600",
-	},
-	downloading: {
-		text: "text-blue-600",
-		dot: "animate-pulse bg-blue-600",
-	},
-	completed: {
-		text: "text-emerald-600",
-		dot: "bg-emerald-600",
-	},
-	failed: {
-		text: "text-destructive",
-		dot: "bg-destructive",
-	},
+const STATUS_VARIANT: Record<TaskStatus, "default" | "secondary" | "destructive" | "outline"> = {
+	queued: "outline",
+	downloading: "secondary",
+	completed: "default",
+	failed: "destructive",
 };
 
-export function QueueSection({ tasks }: QueueSectionProps) {
+export function QueueSection() {
+	const { tasks } = useAppState();
+
 	return (
-		<section className="border-border bg-card mt-8 border p-5">
+		<section aria-labelledby="queue-heading" className="border-border bg-card mt-8 border p-5">
 			<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-				<h2 className="font-sans text-xl leading-7">Download Queue</h2>
-				<span className="text-muted-foreground text-xs">{tasks.length} task(s)</span>
+				<h2 id="queue-heading" className="font-sans text-xl leading-7">
+					Download Queue
+				</h2>
+				<p className="text-muted-foreground text-xs">{tasks.length} task(s)</p>
 			</div>
 
 			<div className="border-border overflow-hidden border">
@@ -63,45 +54,31 @@ export function QueueSection({ tasks }: QueueSectionProps) {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{tasks.map((task) => {
-								const style = STATUS_CLASSES[task.status];
-								return (
-									<TableRow key={task.task_id} className="border-border">
-										<TableCell className="px-3 py-1.5">
-											<code className="text-muted-foreground text-xs tabular-nums">
-												{task.task_id.slice(0, 8)}
-											</code>
-										</TableCell>
-										<TableCell className="px-3 py-1.5">
-											<code>{task.repo_id}</code>
-										</TableCell>
-										<TableCell className="px-3 py-1.5">
-											<code>{task.file_path}</code>
-										</TableCell>
-										<TableCell className="px-3 py-1.5">
-											<span
-												className={cn(
-													"inline-flex items-center gap-1.5 text-xs",
-													style.text,
-												)}
-											>
-												<span
-													className={cn(
-														"size-1.5 rounded-full",
-														style.dot,
-													)}
-												/>
-												{task.status}
-											</span>
-										</TableCell>
-										<TableCell className="px-3 py-1.5">
-											<span className="text-muted-foreground block max-w-72 truncate text-xs">
-												{task.message ?? ""}
-											</span>
-										</TableCell>
-									</TableRow>
-								);
-							})}
+							{tasks.map((task) => (
+								<TableRow key={task.task_id} className="border-border">
+									<TableCell className="px-3 py-1.5">
+										<code className="text-muted-foreground text-xs tabular-nums">
+											{task.task_id.slice(0, 8)}
+										</code>
+									</TableCell>
+									<TableCell className="px-3 py-1.5">
+										<code>{task.repo_id}</code>
+									</TableCell>
+									<TableCell className="px-3 py-1.5">
+										<code>{task.file_path}</code>
+									</TableCell>
+									<TableCell className="px-3 py-1.5">
+										<Badge variant={STATUS_VARIANT[task.status]}>
+											{task.status}
+										</Badge>
+									</TableCell>
+									<TableCell className="px-3 py-1.5">
+										<span className="text-muted-foreground block max-w-72 truncate text-xs">
+											{task.message ?? ""}
+										</span>
+									</TableCell>
+								</TableRow>
+							))}
 						</TableBody>
 					</Table>
 				</div>
