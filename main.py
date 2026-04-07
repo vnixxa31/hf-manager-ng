@@ -19,10 +19,11 @@ from sqlalchemy import UniqueConstraint, event, func
 from sqlmodel import Field, Session, SQLModel, col, create_engine, select
 
 
-DOWNLOAD_ROOT = Path("downloads")
+DOWNLOAD_ROOT = Path(os.environ.get("HF_DOWNLOAD_DIR", "downloads"))
 DOWNLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 
-engine = create_engine("sqlite:///downloads.db", connect_args={"check_same_thread": False})
+_db_path = os.environ.get("HF_DATABASE_PATH", "downloads.db")
+engine = create_engine(f"sqlite:///{_db_path}", connect_args={"check_same_thread": False})
 
 
 @event.listens_for(engine, "connect")
