@@ -39,7 +39,7 @@ export function QueueSection({ tasks }: QueueSectionProps) {
   return (
     <section className="mt-8 border border-border bg-card p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-serif text-xl leading-7">Download Queue</h2>
+        <h2 className="font-sans text-xl leading-7">Download Queue</h2>
         <span className="text-xs text-muted-foreground">
           {tasks.length} task(s)
         </span>

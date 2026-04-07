@@ -23,7 +23,7 @@ export function DownloadsSection({ downloads }: DownloadsSectionProps) {
     <section className="mt-8 border border-border bg-card p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-serif text-xl leading-7">Tracked Downloads</h2>
+          <h2 className="font-sans text-xl leading-7">Tracked Downloads</h2>
           <span className="mt-1 block text-xs text-muted-foreground">
             Durable inventory from SQLite, ordered by last successful download.
           </span>

@@ -70,7 +70,7 @@ export function FilesSection({
   return (
     <section className="mt-8 border border-border bg-card p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-serif text-xl leading-7">
+        <h2 className="font-sans text-xl leading-7">
           Files{" "}
           <span className="font-mono text-xs text-muted-foreground">
             ({filteredFiles.length}/{files.length})

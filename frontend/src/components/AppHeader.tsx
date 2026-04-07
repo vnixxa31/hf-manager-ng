@@ -1,4 +1,4 @@
-import { Sun, Moon } from "@phosphor-icons/react"
+import { SunIcon, MoonIcon } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { useTheme } from "@/components/theme-provider"
@@ -20,7 +20,7 @@ export function AppHeader({ polling }: AppHeaderProps) {
   return (
     <header className="mb-10 flex flex-wrap items-end justify-between gap-4 border-b border-border pb-5">
       <div>
-        <h1 className="font-serif text-3xl leading-9 tracking-tight">
+        <h1 className="font-sans text-3xl leading-9 tracking-tight">
           HF Model Downloader
         </h1>
         <p className="mt-1.5 text-xs text-muted-foreground">
@@ -47,7 +47,7 @@ export function AppHeader({ polling }: AppHeaderProps) {
           onClick={() => setTheme(isDark ? "light" : "dark")}
           title={isDark ? "Switch to light mode" : "Switch to dark mode"}
         >
-          {isDark ? <Sun /> : <Moon />}
+          {isDark ? <SunIcon /> : <MoonIcon />}
         </Button>
       </div>
     </header>
