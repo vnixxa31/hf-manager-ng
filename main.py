@@ -14,7 +14,6 @@ from typing import Literal
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
 from huggingface_hub import HfApi, get_hf_file_metadata, hf_hub_download, hf_hub_url
 from pydantic import BaseModel
 
@@ -312,20 +311,6 @@ init_db()
 threading.Thread(target=download_worker, daemon=True).start()
 
 
-FRONTEND_FILE = Path(__file__).parent / "frontend.html"
-FRONTEND_JS_FILE = Path(__file__).parent / "frontend.js"
-
-
-@app.get("/")
-def index() -> FileResponse:
-    return FileResponse(FRONTEND_FILE, media_type="text/html")
-
-
-@app.get("/frontend.js")
-def frontend_js() -> FileResponse:
-    return FileResponse(FRONTEND_JS_FILE, media_type="text/javascript")
-
-
 @app.post("/api/repo/files")
 def list_repo_files(payload: RepoRequest) -> dict[str, object]:
     try:
@@ -381,8 +366,8 @@ def get_downloads() -> dict[str, object]:
     return {"downloads": list_tracked_downloads()}
 
 
-if os.path.exists("frontend/dist"):
-    app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="static")
+if os.path.exists("dist"):
+    app.mount("/", StaticFiles(directory="dist", html=True), name="static")
 
 
 def main() -> None:
