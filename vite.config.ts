@@ -17,8 +17,9 @@ export default defineConfig({
 		sortImports: true,
 		sortTailwindcss: true,
 		sortPackageJson: true,
+		ignorePatterns: ["docs/**"],
 	},
-	lint: { options: { typeAware: true, typeCheck: true } },
+	lint: { options: { typeAware: true, typeCheck: true }, ignorePatterns: ["docs/**"] },
 	plugins: [react(), tailwindcss()],
 	server: {
 		proxy: {

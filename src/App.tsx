@@ -55,7 +55,7 @@ export default function App() {
 			}
 		};
 
-		refresh();
+		void refresh();
 		const id = setInterval(refresh, 2000);
 		return () => clearInterval(id);
 	}, []);
