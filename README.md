@@ -1,4 +1,4 @@
-# HF Download UI
+# hf-manager-ng
 
 Web UI for browsing files in a Hugging Face model repo and queuing selected files for download.
 

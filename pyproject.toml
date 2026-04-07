@@ -1,5 +1,5 @@
 [project]
-name = "hf-download-ui"
+name = "hf-manager-ng"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
