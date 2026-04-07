@@ -1,4 +1,4 @@
-import { MagnifyingGlass } from "@phosphor-icons/react";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useEffect, useRef } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -82,7 +82,7 @@ export function FilesSection({
 			{/* Filters row */}
 			<div className="mb-3 flex flex-wrap items-center gap-2">
 				<div className="relative min-w-50 flex-1">
-					<MagnifyingGlass className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
+					<MagnifyingGlassIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
 					<input
 						value={searchQuery}
 						onChange={(e) => onSearchChange(e.target.value)}
