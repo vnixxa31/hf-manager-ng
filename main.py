@@ -4,7 +4,6 @@ from fastapi.staticfiles import StaticFiles
 
 import queue
 import re
-import sqlite3
 import threading
 import uuid
 from dataclasses import asdict, dataclass
@@ -16,11 +15,37 @@ from urllib.parse import urlparse
 from fastapi import FastAPI, HTTPException
 from huggingface_hub import HfApi, get_hf_file_metadata, hf_hub_download, hf_hub_url
 from pydantic import BaseModel
+from sqlalchemy import UniqueConstraint, event, func
+from sqlmodel import Field, Session, SQLModel, col, create_engine, select
 
 
 DOWNLOAD_ROOT = Path("downloads")
 DOWNLOAD_ROOT.mkdir(parents=True, exist_ok=True)
-DATABASE_PATH = Path("downloads.db")
+
+engine = create_engine("sqlite:///downloads.db", connect_args={"check_same_thread": False})
+
+
+@event.listens_for(engine, "connect")
+def _set_wal_mode(dbapi_connection, _connection_record) -> None:
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.close()
+
+
+class DownloadedFile(SQLModel, table=True):
+    __tablename__ = "downloaded_files"
+    __table_args__ = (UniqueConstraint("repo_id", "file_path"), {"extend_existing": True})
+
+    id: int | None = Field(default=None, primary_key=True)
+    repo_id: str
+    file_path: str
+    local_path: str
+    size_bytes: int | None = None
+    etag: str | None = None
+    commit_hash: str | None = None
+    first_downloaded_at: str
+    last_downloaded_at: str
+    download_count: int = Field(default=1)
 
 QUANT_PATTERNS = [
     re.compile(r"\b(UD-Q\d+[_A-Z0-9]*)\b", re.IGNORECASE),
@@ -104,25 +129,7 @@ def utcnow_iso() -> str:
 
 
 def init_db() -> None:
-    with sqlite3.connect(DATABASE_PATH) as conn:
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute(
-            """
-                        CREATE TABLE IF NOT EXISTS downloaded_files (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                repo_id TEXT NOT NULL,
-                                file_path TEXT NOT NULL,
-                                local_path TEXT NOT NULL,
-                                size_bytes INTEGER,
-                                etag TEXT,
-                                commit_hash TEXT,
-                                first_downloaded_at TEXT NOT NULL,
-                                last_downloaded_at TEXT NOT NULL,
-                                download_count INTEGER NOT NULL DEFAULT 1,
-                                UNIQUE(repo_id, file_path)
-                        )
-                        """
-        )
+    SQLModel.metadata.create_all(engine)
 
 
 def fetch_file_tracking_metadata(
@@ -150,79 +157,61 @@ def record_download(
     commit_hash: str | None,
 ) -> None:
     downloaded_at = utcnow_iso()
-    with sqlite3.connect(DATABASE_PATH) as conn:
-        conn.execute(
-            """
-                        INSERT INTO downloaded_files (
-                                repo_id,
-                                file_path,
-                                local_path,
-                                size_bytes,
-                                etag,
-                                commit_hash,
-                                first_downloaded_at,
-                                last_downloaded_at,
-                                download_count
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-                        ON CONFLICT(repo_id, file_path) DO UPDATE SET
-                                local_path = excluded.local_path,
-                                size_bytes = COALESCE(excluded.size_bytes, downloaded_files.size_bytes),
-                                etag = COALESCE(excluded.etag, downloaded_files.etag),
-                                commit_hash = COALESCE(excluded.commit_hash, downloaded_files.commit_hash),
-                                last_downloaded_at = excluded.last_downloaded_at,
-                                download_count = downloaded_files.download_count + 1
-                        """,
-            (
-                repo_id,
-                file_path,
-                local_path,
-                size_bytes,
-                etag,
-                commit_hash,
-                downloaded_at,
-                downloaded_at,
-            ),
-        )
+    with Session(engine) as session:
+        existing = session.exec(
+            select(DownloadedFile).where(
+                DownloadedFile.repo_id == repo_id,
+                DownloadedFile.file_path == file_path,
+            )
+        ).first()
+        if existing:
+            existing.local_path = local_path
+            existing.size_bytes = size_bytes if size_bytes is not None else existing.size_bytes
+            existing.etag = etag if etag is not None else existing.etag
+            existing.commit_hash = commit_hash if commit_hash is not None else existing.commit_hash
+            existing.last_downloaded_at = downloaded_at
+            existing.download_count += 1
+            session.add(existing)
+        else:
+            session.add(
+                DownloadedFile(
+                    repo_id=repo_id,
+                    file_path=file_path,
+                    local_path=local_path,
+                    size_bytes=size_bytes,
+                    etag=etag,
+                    commit_hash=commit_hash,
+                    first_downloaded_at=downloaded_at,
+                    last_downloaded_at=downloaded_at,
+                )
+            )
+        session.commit()
 
 
 def list_tracked_downloads() -> list[dict[str, object]]:
-    with sqlite3.connect(DATABASE_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            """
-                        SELECT
-                                repo_id,
-                                file_path,
-                                local_path,
-                                size_bytes,
-                                etag,
-                                commit_hash,
-                                first_downloaded_at,
-                                last_downloaded_at,
-                                download_count
-                        FROM downloaded_files
-                        ORDER BY datetime(last_downloaded_at) DESC, id DESC
-                        """
-        ).fetchall()
+    with Session(engine) as session:
+        rows = session.exec(
+            select(DownloadedFile).order_by(
+                func.datetime(DownloadedFile.last_downloaded_at).desc(),
+                col(DownloadedFile.id).desc(),
+            )
+        ).all()
 
-    downloads: list[dict[str, object]] = []
-    for row in rows:
-        downloads.append(
-            {
-                "repo_id": row["repo_id"],
-                "file_path": row["file_path"],
-                "local_path": row["local_path"],
-                "size_bytes": row["size_bytes"],
-                "etag": row["etag"],
-                "commit_hash": row["commit_hash"],
-                "first_downloaded_at": row["first_downloaded_at"],
-                "last_downloaded_at": row["last_downloaded_at"],
-                "download_count": row["download_count"],
-                "quantizations": detect_quantizations(str(row["file_path"])),
-            }
-        )
-    return downloads
+    return [
+        {
+            "repo_id": row.repo_id,
+            "file_path": row.file_path,
+            "local_path": row.local_path,
+            "size_bytes": row.size_bytes,
+            "etag": row.etag,
+            "commit_hash": row.commit_hash,
+            "first_downloaded_at": row.first_downloaded_at,
+            "last_downloaded_at": row.last_downloaded_at,
+            "download_count": row.download_count,
+            "quantizations": detect_quantizations(row.file_path),
+        }
+        for row in rows
+    ]
 
 
 def get_repo_file_entries(

@@ -1,4 +1,4 @@
-.PHONY: build dev prod
+.PHONY: build dev prod clean
 
 build:
 	pnpm build
@@ -8,3 +8,6 @@ dev:
 
 prod: build
 	uv run python main.py
+
+clean:
+	rm -rf downloads.db downloads.db-shm downloads.db-wal downloads/
