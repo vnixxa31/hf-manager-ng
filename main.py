@@ -1,4 +1,6 @@
 from __future__ import annotations
+import os
+from fastapi.staticfiles import StaticFiles
 
 import queue
 import re
@@ -377,6 +379,10 @@ def get_queue() -> dict[str, object]:
 @app.get("/api/downloads")
 def get_downloads() -> dict[str, object]:
     return {"downloads": list_tracked_downloads()}
+
+
+if os.path.exists("frontend/dist"):
+    app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="static")
 
 
 def main() -> None:
