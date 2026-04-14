@@ -22,6 +22,8 @@ from sqlmodel import Field, Session, SQLModel, col, create_engine, select
 _db_path = os.environ.get("HF_DATABASE_PATH", "downloads.db")
 engine = create_engine(f"sqlite:///{_db_path}", connect_args={"check_same_thread": False})
 
+HF_TOKEN = os.environ.get("HF_TOKEN", None)
+
 
 @event.listens_for(engine, "connect")
 def _set_wal_mode(dbapi_connection, _connection_record) -> None:
@@ -106,13 +108,13 @@ class DownloadTask:
 
 class RepoRequest(BaseModel):
     repo_input: str
-    token: str | None = None
+    token: str | None = HF_TOKEN
 
 
 class AddToQueueRequest(BaseModel):
     repo_id: str
     files: list[str]
-    token: str | None = None
+    token: str | None = HF_TOKEN
 
 
 app = FastAPI(title="HF Download UI")
@@ -133,7 +135,7 @@ def init_db() -> None:
 def fetch_file_tracking_metadata(
     repo_id: str,
     file_path: str,
-    token: str | None = None,
+    token: str | None = HF_TOKEN,
 ) -> dict[str, str | int | None]:
     metadata = get_hf_file_metadata(
         hf_hub_url(repo_id=repo_id, filename=file_path),
@@ -213,7 +215,7 @@ def list_tracked_downloads() -> list[dict[str, object]]:
 
 
 def get_repo_file_entries(
-    repo_id: str, token: str | None = None
+    repo_id: str, token: str | None = HF_TOKEN
 ) -> list[dict[str, object]]:
     info = api_client.model_info(repo_id=repo_id, token=token, files_metadata=True)
     entries: list[dict[str, object]] = []
