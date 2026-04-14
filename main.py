@@ -19,9 +19,6 @@ from sqlalchemy import UniqueConstraint, event, func
 from sqlmodel import Field, Session, SQLModel, col, create_engine, select
 
 
-DOWNLOAD_ROOT = Path(os.environ.get("HF_DOWNLOAD_DIR", "downloads"))
-DOWNLOAD_ROOT.mkdir(parents=True, exist_ok=True)
-
 _db_path = os.environ.get("HF_DATABASE_PATH", "downloads.db")
 engine = create_engine(f"sqlite:///{_db_path}", connect_args={"check_same_thread": False})
 
@@ -245,15 +242,11 @@ def download_worker() -> None:
             task.status = "downloading"
             task.message = "Downloading..."
 
-        local_repo_dir = DOWNLOAD_ROOT / repo_id.replace("/", "__")
-        local_repo_dir.mkdir(parents=True, exist_ok=True)
-
         try:
             downloaded_file = hf_hub_download(
                 repo_id=repo_id,
                 filename=file_path,
                 token=token,
-                cache_dir=local_repo_dir,
             )
             size_bytes = Path(downloaded_file).stat().st_size
             etag: str | None = None
